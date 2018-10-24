@@ -5,7 +5,7 @@ class Wiz(nn.Module):
     def __init__(self,frames_sequence,heads,feature_size,hidden_size,batch_size):
         super(Wiz, self).__init__()
         self.weights4firstpart=0.5
-        self.time_attn = MultiHeadAttention(frames_sequence,feature_size,heads)
+        self.time_attn = MultiHeadAttention(frames_sequence,feature_size,heads,batch_size)
         self.normadd=NormAdd([frames_sequence,feature_size])
         self.FFN= FeedForwardNetwork(feature_size,hidden_size)
 

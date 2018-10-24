@@ -60,14 +60,14 @@ class Attention(nn.Module):
         return res, attention #they also returned attn look at their code
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self,frames_sequence,feature_size,heads,dropout=0.12):
+    def __init__(self,frames_sequence,feature_size,heads,batch_size,dropout=0.12):
         super(MultiHeadAttention,self).__init__()
         self.frames_sequence = frames_sequence
         self.heads = heads
         self.dk = int(feature_size/heads)
         self.dv = int(feature_size/heads)
         self.dropout = nn.Dropout(dropout)
-
+        self.batch_size = batch_size
         self.q_fc = nn.Linear(feature_size, feature_size)
         self.k_fc = nn.Linear(feature_size, feature_size)
         self.v_fc = nn.Linear(feature_size, feature_size)
@@ -85,10 +85,10 @@ class MultiHeadAttention(nn.Module):
 
     def forward(self,k,q,v,mask=None):
 
-        batch_size=q.size(0)
-        q = self.q_fc(torch.squeeze(q)).view(batch_size,self.frames_sequence ,self.heads, self.dk)
-        k = self.k_fc(torch.squeeze(k)).view(batch_size,self.frames_sequence ,self.heads, self.dk)
-        v = self.v_fc(torch.squeeze(v)).view(batch_size,self.frames_sequence ,self.heads, self.dk)
+
+        q = self.q_fc(torch.squeeze(q)).view(self.batch_size,self.frames_sequence ,self.heads, self.dk)
+        k = self.k_fc(torch.squeeze(k)).view(self.batch_size,self.frames_sequence ,self.heads, self.dk)
+        v = self.v_fc(torch.squeeze(v)).view(self.batch_size,self.frames_sequence ,self.heads, self.dk)
 
         k = k.transpose(1,2)
         q = q.transpose(1,2)
@@ -98,7 +98,7 @@ class MultiHeadAttention(nn.Module):
        #    mask = mask.repeat(self.heads, 1, 1)  # (n*b) x .. x ..
         res, attention = self.attention(q, k, v,self.dk*self.heads, mask=mask)
         #res = res.view(self.heads, batch_size, self.frames_sequence, self.dv)
-        res = res.permute(1, 2, 0, 3).contiguous().view(batch_size, self.frames_sequence, -1)  # b x lq x (n*dv)
+        res = res.permute(1, 2, 0, 3).contiguous().view(self.batch_size, self.frames_sequence, -1)  # b x lq x (n*dv)
         res = self.linear2(res)
         res = self.dropout(res)
 
@@ -185,7 +185,7 @@ def get_subsequent_mask(seq):
 class Encoder(nn.Module):
     def __init__(self,frames_sequence,heads,feature_size,hidden_size,batch_size):
         super(Encoder,self).__init__()
-        self.mha=MultiHeadAttention(frames_sequence,feature_size,heads)
+        self.mha=MultiHeadAttention(frames_sequence,feature_size,heads,batch_size)
         self.normadd=NormAdd([frames_sequence,feature_size])
         self.FFN= FeedForwardNetwork(feature_size,hidden_size)
 
@@ -200,7 +200,7 @@ class Encoder(nn.Module):
 class Encoder_no_ffn(nn.Module):
     def __init__(self,frames_sequence,heads,feature_size,hidden_size,batch_size):
         super(Encoder_no_ffn,self).__init__()
-        self.mha=MultiHeadAttention(frames_sequence,feature_size,heads)
+        self.mha=MultiHeadAttention(frames_sequence,feature_size,heads,batch_size)
         self.normadd=NormAdd([frames_sequence,feature_size])
 
     def forward(self, enc_in):
