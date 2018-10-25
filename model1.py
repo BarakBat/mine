@@ -3,6 +3,7 @@ from torch import nn
 from net2 import ResNet
 #from models import resnet, pre_act_resnet, wide_resnet, resnext, densenet
 import mobilenet
+from mfnet import MFNET_3D
 import resnet
 #from resnet import ResNet
 from models import resnet as resnet3d
@@ -34,46 +35,66 @@ def get_fine_tuning_parameters(model, ft_begin_index):
 class BNet(nn.Module):
     def __init__(self,opt):
         super(BNet, self).__init__()
+        #Defines
         self.number_gpu=opt.number_gpu
-        self.cnn_dim = opt.cnn_dim
+        self.cnn_arch = opt.cnn_arch
         self.feature_size = opt.feature_size
         self.frame_size = opt.frame_size
         self.batch_size = int(opt.batch_size/opt.number_gpu)
         self.frames_sequence = opt.frames_sequence
 
-        self.feature_extrator = resnet.resnet50(feature_size=opt.feature_size)
-        #self.feature_extrator = resnet3d.resnet34(feature_size=opt.feature_size, frame_size=opt.frame_size,frames_sequence=opt.frames_sequence)
-        self.dim_ds           = nn.Linear(opt.feature_size, opt.feature_size_ds)
-        self.attention = PayAttention(opt.feature_size_ds, opt.frame_size, self.batch_size, opt.frames_sequence,opt.attention_arch)
+        ###feature extractor###
+        if self.cnn_arch == '2D':
+            self.feature_extrator = resnet.resnet50(feature_size=opt.feature_size)
+        elif self.cnn_arch == '3D':
+            self.feature_extrator = resnet3d.resnet34(feature_size=opt.feature_size, frame_size=opt.frame_size,frames_sequence=opt.frames_sequence)
+        elif self.cnn_arch == 'mfnet':
+            self.feature_extrator =MFNET_3D(opt.feature_size)
+        ###change dimansion###
+        if opt.cnn_arch == 'mfnet':
+            self.dim_ds           = nn.Linear(768, opt.feature_size_ds)
+        else:
+            self.dim_ds           = nn.Linear(opt.feature_size, opt.feature_size_ds)
+        for p in self.dim_ds.parameters():
+            if p.dim() > 1:
+                nn.init.xavier_uniform_(p)
+        ###attention####
+        self.attention = PayAttention(opt.feature_size_ds, opt.frame_size, self.batch_size, opt.frames_sequence,opt.attention_arch,opt.cnn_arch)
         for p in self.attention.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
-        self.fc3 = nn.Linear(int(opt.frames_sequence/2), opt.n_classes)
+        ####fc3####
+        if opt.attention_arch == "dec":
+             self.fc3 = nn.Linear(int(opt.frames_sequence/2), opt.n_classes)
+        else:
+            self.fc3 = nn.Linear(opt.frames_sequence, opt.n_classes)
         for p in self.fc3.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
+
+        ####fc4####
         self.fc4 = nn.Linear(opt.feature_size_ds, 1)
         for p in self.fc4.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
-        self.softmax = nn.Softmax(dim = 1)
 
 
     def forward(self, x,frames_sequence):
-        if self.cnn_dim == '3D':
-            x = x.view(self.batch_size, 3,self.frames_sequence, self.frame_size, self.frame_size)
-        else:
+        if self.cnn_arch == '3D':
+            x = x.view(self.batch_size, 3, self.frames_sequence, self.frame_size, self.frame_size)
+        elif self.cnn_arch == '2D':
             x = x.view(self.batch_size * self.frames_sequence, 3, self.frame_size, self.frame_size)
+        elif self.cnn_arch == 'mfnet':
+            x = x.view(self.batch_size, 3, self.frames_sequence, self.frame_size, self.frame_size)
         with torch.no_grad():
             x = self.feature_extrator(x)
         x=self.dim_ds(x)
         x = self.attention(x)
-        #y = self.conv1(torch.unsqueeze(x,dim=1))
         x = x.transpose(1,2)
         x = self.fc3(x)
         x = x.transpose(1,2)
         x = self.fc4(x)
-        x = self.softmax(torch.squeeze(x,1))
+
 
         return x
 

@@ -27,20 +27,21 @@ def train_epoch(epoch, data_loader, model, criterion, optimizer, opt,
             inputs  = inputs.to('cuda')
         inputs = Variable(inputs)
         targets = Variable(targets)
+
         outputs = model(inputs,opt.frames_sequence)
 
         outputs = torch.squeeze(outputs,2)
         loss = criterion(outputs, targets)
         acc = calculate_accuracy(outputs, targets)
 
-        losses.update(loss.data[0], inputs.size(0))
+        losses.update(loss.item(), inputs.size(0))
         accuracies.update(acc, inputs.size(0))
 
         optimizer.zero_grad()
         loss.backward()
         if opt.optimizer == 'adam':
             optimizer.step()
-        elif  opt.optimizer == 'noam':
+        elif opt.optimizer == 'noam':
             optimizer.step_and_update_lr()
 
         batch_time.update(time.time() - end_time)

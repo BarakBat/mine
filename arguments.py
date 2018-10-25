@@ -9,10 +9,10 @@ def parse_opts():
         type=str,
         help='Root directory path of data')
     parser.add_argument(
-        '--cnn_dim',
+        '--cnn_arch',
         default='2D',
         type=str,
-        help='2D|3D')
+        help='2D|3D|mfnet')
     parser.add_argument(
         '--feature_size',
         default='1000',
@@ -73,7 +73,7 @@ def parse_opts():
         help='Height and width of inputs')
     parser.add_argument(
         '--frames_sequence',
-        default = 32,
+        default = 16,
         type=int,
         help='Temporal duration of inputs')
     parser.add_argument(

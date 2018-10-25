@@ -4,7 +4,7 @@ Author: Yunpeng Chen
 import logging
 import os
 from collections import OrderedDict
-
+import torch
 import torch.nn as nn
 
 try:
@@ -89,7 +89,7 @@ class MFNET_3D(nn.Module):
                     ("B%02d"%i, MF_UNIT(num_in=conv1_num_out if i==1 else conv2_num_out,
                                         num_mid=num_mid,
                                         num_out=conv2_num_out,
-                                        stride=(2,1,1) if i==1 else (1,1,1),
+                                        stride=(1,1,1) if i==1 else (1,1,1),
                                         g=groups,
                                         first_block=(i==1))) for i in range(1,k_sec[2]+1)
                     ]))
@@ -137,7 +137,7 @@ class MFNET_3D(nn.Module):
                     ]))
 
         self.globalpool = nn.Sequential(OrderedDict([
-                        ('avg', nn.AvgPool3d(kernel_size=(8,7,7),  stride=(1,1,1))),
+                        ('avg', nn.AvgPool3d(kernel_size=(1,7,7),  stride=(1,1,1))),
                         # ('dropout', nn.Dropout(p=0.5)), only for fine-tuning
                         ]))
         self.classifier = nn.Linear(conv5_num_out, num_classes)
@@ -159,7 +159,7 @@ class MFNET_3D(nn.Module):
             logging.info("Network:: graph initialized, use random inilization!")
 
     def forward(self, x):
-        assert x.shape[2] == 16
+        #assert x.shape[2] == 16
 
         h = self.conv1(x)   # x224 -> x112
         h = self.maxpool(h) # x112 ->  x56
@@ -172,8 +172,10 @@ class MFNET_3D(nn.Module):
         h = self.tail(h)
         h = self.globalpool(h)
 
-        h = h.view(h.shape[0], -1)
-        h = self.classifier(h)
+        h = torch.squeeze(h)
+        h = torch.transpose(h,2,1)
+
+        #h = self.classifier(h)
 
         return h
 

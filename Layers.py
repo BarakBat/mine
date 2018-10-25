@@ -108,10 +108,10 @@ class MultiHeadAttention(nn.Module):
 
 
 class PositionalEncoder(nn.Module):
-    def __init__(self, feature_size, max_seq_len=80):
+    def __init__(self, feature_size,cnn_arch, max_seq_len=80):
         super().__init__()
         self.feature_size = feature_size
-
+        self.cnn_arch =cnn_arch
         # create constant 'pe' matrix with values dependant on
         # pos and i
         pe = torch.zeros(max_seq_len, feature_size)
@@ -130,9 +130,13 @@ class PositionalEncoder(nn.Module):
         x = x * math.sqrt(self.feature_size)
         # add constant to embedding
         seq_len = x.size(1)
-        pos=Variable(self.pe[:, :seq_len],requires_grad=False)#.cuda()
-        pos=torch.squeeze(pos)
-        pos= pos.repeat(batch_size, 1)
+        pos = Variable(self.pe[:, :seq_len],requires_grad=False)
+        if self.cnn_arch == "2D":
+            pos = torch.squeeze(pos)
+            pos = pos.repeat(batch_size,1)
+        else:
+            pos.repeat(batch_size, 1, 1)
+            pos.repeat(batch_size, 1, 1)
         x = x + pos
         return x
 #TODO: need to finish check + change, 4 functions

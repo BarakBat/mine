@@ -6,12 +6,12 @@ from Layers import PositionalEncoder, Encoder,Encoder_no_ffn
 
 
 class PayAttention(nn.Module):
-    def __init__(self, feature_size, frame_size,batch_size,frames_sequence,attention_arch):
+    def __init__(self, feature_size, frame_size,batch_size,frames_sequence,attention_arch,cnn_arch):
         super(PayAttention, self).__init__()
         self.feature_size    = feature_size
         self.frame_size      = frame_size
         self.batch_size      = batch_size
-        self.pos_enc         = PositionalEncoder(feature_size,frames_sequence)
+        self.pos_enc         = PositionalEncoder(feature_size,cnn_arch,frames_sequence)
         self.frames_sequence = frames_sequence
         self.attention_arch  = attention_arch
         if attention_arch == "dec":
@@ -35,6 +35,6 @@ class PayAttention(nn.Module):
             out2 = self.SelfAttention1(input2)
             out = self.Attention(out1,out2)
         else:
-            x = self.SelfAttention2(x)
+            out = self.SelfAttention2(x)
 
         return out
