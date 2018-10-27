@@ -89,7 +89,7 @@ class MFNET_3D(nn.Module):
                     ("B%02d"%i, MF_UNIT(num_in=conv1_num_out if i==1 else conv2_num_out,
                                         num_mid=num_mid,
                                         num_out=conv2_num_out,
-                                        stride=(1,1,1) if i==1 else (1,1,1),
+                                        stride=(2,1,1) if i==1 else (1,1,1),
                                         g=groups,
                                         first_block=(i==1))) for i in range(1,k_sec[2]+1)
                     ]))
@@ -137,10 +137,10 @@ class MFNET_3D(nn.Module):
                     ]))
 
         self.globalpool = nn.Sequential(OrderedDict([
-                        ('avg', nn.AvgPool3d(kernel_size=(1,7,7),  stride=(1,1,1))),
+                        ('avg', nn.AvgPool3d(kernel_size=(2,7,7),  stride=(1,1,1))),
                         # ('dropout', nn.Dropout(p=0.5)), only for fine-tuning
                         ]))
-        self.classifier = nn.Linear(conv5_num_out, num_classes)
+        self.classifier = nn.Linear(conv5_num_out, 400)
 
 
         #############
@@ -150,7 +150,7 @@ class MFNET_3D(nn.Module):
         if pretrained:
             import torch
             load_method='inflation' # 'random', 'inflation'
-            pretrained_model=os.path.join(os.path.dirname(os.path.realpath(__file__)), 'pretrained/MFNet2D_ImageNet1k-0000.pth')
+            pretrained_model=os.path.join(os.path.dirname(os.path.realpath(__file__)), 'MFNet3D_Kinetics-400_72.8.pth')
             logging.info("Network:: graph initialized, loading pretrained model: `{}'".format(pretrained_model))
             assert os.path.exists(pretrained_model), "cannot locate: `{}'".format(pretrained_model)
             state_dict_2d = torch.load(pretrained_model)
@@ -173,9 +173,9 @@ class MFNET_3D(nn.Module):
         h = self.globalpool(h)
 
         h = torch.squeeze(h)
-        h = torch.transpose(h,2,1)
+     #   h = torch.transpose(h,2,1)
 
-        #h = self.classifier(h)
+        h = self.classifier(h)
 
         return h
 

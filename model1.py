@@ -89,7 +89,8 @@ class BNet(nn.Module):
             x = x.view(self.batch_size, 3, self.frames_sequence, self.frame_size, self.frame_size)
         with torch.no_grad():
             x = self.feature_extrator(x)
-        x=self.dim_ds(x)
+        if self.cnn_arch != 'mfnet':
+            x = self.dim_ds(x)
         x = self.attention(x)
         x = x.transpose(1,2)
         x = self.fc3(x)

@@ -50,7 +50,7 @@ class Net(nn.Module):
         self.pool            = nn.AvgPool1d(7)
         self.pos_enc         = PositionalEncoder(feature_size,frames_sequence)
         self.Learner1        = Encoder(256,frames_sequence,4,256,512,batch_size)
-        self.Learner2         = Encoder(256,frames_sequence,4,256,512,batch_size)
+        self.Learner2        = Encoder(256,frames_sequence,4,256,512,batch_size)
         self.fc3             = nn.Linear(frames_sequence, num_classes)
         self.fc4             = nn.Linear(feature_size, 1)
         self.softmax         = nn.Softmax()

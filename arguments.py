@@ -10,7 +10,7 @@ def parse_opts():
         help='Root directory path of data')
     parser.add_argument(
         '--cnn_arch',
-        default='2D',
+        default='mfnet',
         type=str,
         help='2D|3D|mfnet')
     parser.add_argument(
@@ -40,7 +40,7 @@ def parse_opts():
         help='Annotation file path')
     parser.add_argument(
         '--attention_arch',
-        default='dec',
+        default='enc',
         type=str,
         help='enc|dec') #change to other names
     parser.add_argument(
@@ -77,8 +77,14 @@ def parse_opts():
         type=int,
         help='Height and width of inputs')
     parser.add_argument(
+        '--frames4attention',
+        default=8,
+        type=int,
+        help='Temporal duration of inputs')
+
+    parser.add_argument(
         '--frames_sequence',
-        default = 16,
+        default = 4,
         type=int,
         help='Temporal duration of inputs')
     parser.add_argument(
@@ -145,7 +151,7 @@ def parse_opts():
         help='Patience of LR scheduler. See documentation of ReduceLROnPlateau.'
     )
     parser.add_argument(
-        '--batch_size', default=2 , type=int, help='Batch Size')
+        '--batch_size', default=16, type=int, help='Batch Size')
     parser.add_argument('--n_epochs',
         default=200,
         type=int,

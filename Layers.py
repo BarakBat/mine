@@ -16,9 +16,9 @@ BOS_WORD = '<s>'
 EOS_WORD = '</s>'
 
 class NormAdd(nn.Module):
-    def __init__(self,frames_sequence):
+    def __init__(self,frames4attention):
         super(NormAdd,self).__init__()
-        self.norm = nn.LayerNorm(frames_sequence)
+        self.norm = nn.LayerNorm(frames4attention)
 
     def forward(self,input,residual):
         output = self.norm(input + residual)
@@ -60,14 +60,14 @@ class Attention(nn.Module):
         return res, attention #they also returned attn look at their code
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self,frames_sequence,feature_size,heads,batch_size,dropout=0.12):
+    def __init__(self,frames4attention,feature_size,heads,attention_batch,dropout=0.12):
         super(MultiHeadAttention,self).__init__()
-        self.frames_sequence = frames_sequence
+        self.frames4attention = frames4attention
         self.heads = heads
         self.dk = int(feature_size/heads)
         self.dv = int(feature_size/heads)
         self.dropout = nn.Dropout(dropout)
-        self.batch_size = batch_size
+        self.attention_batch = attention_batch
         self.q_fc = nn.Linear(feature_size, feature_size)
         self.k_fc = nn.Linear(feature_size, feature_size)
         self.v_fc = nn.Linear(feature_size, feature_size)
@@ -86,9 +86,9 @@ class MultiHeadAttention(nn.Module):
     def forward(self,k,q,v,mask=None):
 
 
-        q = self.q_fc(torch.squeeze(q)).view(self.batch_size,self.frames_sequence ,self.heads, self.dk)
-        k = self.k_fc(torch.squeeze(k)).view(self.batch_size,self.frames_sequence ,self.heads, self.dk)
-        v = self.v_fc(torch.squeeze(v)).view(self.batch_size,self.frames_sequence ,self.heads, self.dk)
+        q = self.q_fc(torch.squeeze(q)).view(self.attention_batch,self.frames4attention ,self.heads, self.dk)
+        k = self.k_fc(torch.squeeze(k)).view(self.attention_batch,self.frames4attention ,self.heads, self.dk)
+        v = self.v_fc(torch.squeeze(v)).view(self.attention_batch,self.frames4attention ,self.heads, self.dk)
 
         k = k.transpose(1,2)
         q = q.transpose(1,2)
@@ -97,8 +97,8 @@ class MultiHeadAttention(nn.Module):
        # if mask is not None:
        #    mask = mask.repeat(self.heads, 1, 1)  # (n*b) x .. x ..
         res, attention = self.attention(q, k, v,self.dk*self.heads, mask=mask)
-        #res = res.view(self.heads, batch_size, self.frames_sequence, self.dv)
-        res = res.permute(1, 2, 0, 3).contiguous().view(self.batch_size, self.frames_sequence, -1)  # b x lq x (n*dv)
+        #res = res.view(self.heads, attention_batch, self.frames4attention, self.dv)
+        res = res.permute(1, 2, 0, 3).contiguous().view(self.attention_batch, self.frames4attention, -1)  # b x lq x (n*dv)
         res = self.linear2(res)
         res = self.dropout(res)
 
@@ -114,6 +114,8 @@ class PositionalEncoder(nn.Module):
         self.cnn_arch =cnn_arch
         # create constant 'pe' matrix with values dependant on
         # pos and i
+        if cnn_arch == "mfnet":
+            feature_size = 400
         pe = torch.zeros(max_seq_len, feature_size)
         for pos in range(max_seq_len):
             for i in range(0, feature_size, 2):
@@ -125,22 +127,21 @@ class PositionalEncoder(nn.Module):
         pe = pe.unsqueeze(0)
         self.register_buffer('pe', pe)
 
-    def forward(self, x, batch_size):
+    def forward(self, x, attention_batch):
         # make embeddings relatively larger
         x = x * math.sqrt(self.feature_size)
         # add constant to embedding
-        seq_len = x.size(1)
+        seq_len = x.size(-1)
         pos = Variable(self.pe[:, :seq_len],requires_grad=False)
         if self.cnn_arch == "2D":
             pos = torch.squeeze(pos)
-            pos = pos.repeat(batch_size,1)
+            pos = pos.repeat(attention_batch,1)
         else:
-            pos.repeat(batch_size, 1, 1)
-            pos.repeat(batch_size, 1, 1)
+            pos=pos.repeat(x.shape[0], 1, 1)
         x = x + pos
         return x
 #TODO: need to finish check + change, 4 functions
-def pos_enc_table(frames_sequence, feature_size, padding_idx=None):
+def pos_enc_table(frames4attention, feature_size, padding_idx=None):
     ''' Sinusoid position encoding table '''
 
     def cal_angle(position, hid_idx):
@@ -151,7 +152,7 @@ def pos_enc_table(frames_sequence, feature_size, padding_idx=None):
         return [cal_angle(position, i) for i in range(feature_size)]
 
     #For loop for each position in the sentence
-    for pos_i in range(frames_sequence):
+    for pos_i in range(frames4attention):
         sinusoid_table = np.array([get_posi_angle_vec(pos_i)])
 
     sinusoid_table[:, 0::2] = np.sin(sinusoid_table[:, 0::2])  # dim 2i
@@ -187,10 +188,10 @@ def get_subsequent_mask(seq):
 
 
 class Encoder(nn.Module):
-    def __init__(self,frames_sequence,heads,feature_size,hidden_size,batch_size):
+    def __init__(self,frames4attention,heads,feature_size,hidden_size,attention_batch):
         super(Encoder,self).__init__()
-        self.mha=MultiHeadAttention(frames_sequence,feature_size,heads,batch_size)
-        self.normadd=NormAdd([frames_sequence,feature_size])
+        self.mha=MultiHeadAttention(frames4attention,feature_size,heads,attention_batch)
+        self.normadd=NormAdd([frames4attention,feature_size])
         self.FFN= FeedForwardNetwork(feature_size,hidden_size)
 
     def forward(self, enc_in):
@@ -202,10 +203,10 @@ class Encoder(nn.Module):
         return output
 
 class Encoder_no_ffn(nn.Module):
-    def __init__(self,frames_sequence,heads,feature_size,hidden_size,batch_size):
+    def __init__(self,frames4attention,heads,feature_size,hidden_size,attention_batch):
         super(Encoder_no_ffn,self).__init__()
-        self.mha=MultiHeadAttention(frames_sequence,feature_size,heads,batch_size)
-        self.normadd=NormAdd([frames_sequence,feature_size])
+        self.mha=MultiHeadAttention(frames4attention,feature_size,heads,attention_batch)
+        self.normadd=NormAdd([frames4attention,feature_size])
 
     def forward(self, enc_in):
 
@@ -216,11 +217,11 @@ class Encoder_no_ffn(nn.Module):
 
 
 class Encoder_Stack(nn.Module):
-    def __init__(self,frames_sequence,feature_size,enc_layers,heads,embedding_size,hidden_size,batch_size):
+    def __init__(self,frames4attention,feature_size,enc_layers,heads,embedding_size,hidden_size,attention_batch):
         super().__init__()
 
         self.layer_stack = nn.ModuleList([
-            Encoder(feature_size, frames_sequence, heads,embedding_size,hidden_size)
+            Encoder(feature_size, frames4attention, heads,embedding_size,hidden_size)
             for _ in range(enc_layers)])
 
     def forward(self, src_seq, src_pos, return_attns=False):

@@ -22,8 +22,8 @@ def train_epoch(epoch, data_loader, model, criterion, optimizer, opt,
     for i, (inputs, targets) in enumerate(data_loader):
         data_time.update(time.time() - end_time)
 
-        #if not opt.no_cuda:
-        #    targets = targets.to('cuda')
+        if not opt.no_cuda:
+            targets = targets.to('cuda')
         #    inputs  = inputs.to('cuda')
         inputs = Variable(inputs)
         targets = Variable(targets)

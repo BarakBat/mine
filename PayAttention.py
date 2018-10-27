@@ -6,29 +6,32 @@ from Layers import PositionalEncoder, Encoder,Encoder_no_ffn
 
 
 class PayAttention(nn.Module):
-    def __init__(self, feature_size, frame_size,batch_size,frames_sequence,attention_arch,cnn_arch):
+    def __init__(self, feature_size, frame_size,attention_batch,frames4attention,attention_arch,cnn_arch):
         super(PayAttention, self).__init__()
         self.feature_size    = feature_size
         self.frame_size      = frame_size
-        self.batch_size      = batch_size
-        self.pos_enc         = PositionalEncoder(feature_size,cnn_arch,frames_sequence)
-        self.frames_sequence = frames_sequence
+        self.attention_batch      = attention_batch
+        self.pos_enc         = PositionalEncoder(feature_size,cnn_arch,frames4attention)
+        self.frames4attention = frames4attention
         self.attention_arch  = attention_arch
+        self.cnn_arch        = cnn_arch
         if attention_arch == "dec":
-            self.new_frames_sequence=int(frames_sequence/2)
-            self.SelfAttention1        = Encoder_no_ffn(self.new_frames_sequence,4,feature_size,1200,batch_size)
-            self.SelfAttention2        = Encoder_no_ffn(self.new_frames_sequence,4,feature_size,1200,batch_size)
-            self.Attention             = Wiz(self.new_frames_sequence,4,feature_size,1200,batch_size)
+            self.new_frames4attention=int(frames4attention/2)
+            self.SelfAttention1        = Encoder_no_ffn(self.new_frames4attention,4,feature_size,1200,attention_batch)
+            self.SelfAttention2        = Encoder_no_ffn(self.new_frames4attention,4,feature_size,1200,attention_batch)
+            self.Attention             = Wiz(self.new_frames4attention,4,feature_size,1200,attention_batch)
         else:
-            self.new_frames_sequence = frames_sequence
-            self.SelfAttention1        = Encoder(frames_sequence,4,feature_size,1200,batch_size)
-            self.SelfAttention2        = Encoder(frames_sequence,4,feature_size,1200,batch_size)
+            self.new_frames4attention  = frames4attention
+            self.SelfAttention1        = Encoder(frames4attention, 4, feature_size, 1200, attention_batch)
+            self.SelfAttention2        = Encoder(frames4attention, 4, feature_size, 1200, attention_batch)
     def forward(self,x):
         x = torch.squeeze(x)
-        x = self.pos_enc(x, self.batch_size)
-        x = x.view(self.batch_size, self.frames_sequence, self.feature_size)
+        x = self.pos_enc(x, self.attention_batch)
+        if self.cnn_arch != "mfnet":
+            x = x.view(self.attention_batch, self.frames4attention)
+
         if self.attention_arch == "dec":
-            input = torch.split(x,(self.new_frames_sequence,self.new_frames_sequence),1)
+            input = torch.split(x,(self.new_frames4attention,self.new_frames4attention),1)
             input1=input[0]
             input2=input[1]
             out1 = self.SelfAttention1(input1)

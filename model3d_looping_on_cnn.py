@@ -44,6 +44,10 @@ class BNet(nn.Module):
         self.frames_sequence = opt.frames_sequence
         self.split_input = opt.split_input
         self.no_cuda = opt.no_cuda
+        self.frames4attention = opt.frames4attention
+        self.batch_load = int(self.batch_size / self.split_input) # batch in each iteration
+        self.attention_batch = int(self.batch_size / self.frames4attention)
+
         ###feature extractor###
         if self.cnn_arch == '2D':
             self.feature_extrator = resnet.resnet50(feature_size=opt.feature_size)
@@ -60,44 +64,53 @@ class BNet(nn.Module):
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
         ###attention####
-        self.attention = PayAttention(opt.feature_size_ds, opt.frame_size, self.batch_size, opt.frames_sequence,opt.attention_arch,opt.cnn_arch)
+        if self.cnn_arch == "mfnet":
+            feature_size_ds = 400
+        else:
+            feature_size_ds = opt.feature_size_ds
+        self.attention = PayAttention(feature_size_ds, opt.frame_size, self.attention_batch, opt.frames4attention,opt.attention_arch,opt.cnn_arch)
         for p in self.attention.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
         ####fc3####
         if opt.attention_arch == "dec":
-             self.fc3 = nn.Linear(int(opt.frames_sequence/2), opt.n_classes)
+             self.fc3 = nn.Linear(int(opt.frames4attention/2), opt.n_classes)
         else:
-            self.fc3 = nn.Linear(opt.frames_sequence, opt.n_classes)
+            self.fc3 = nn.Linear(opt.frames4attention, opt.n_classes)
         for p in self.fc3.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
 
         ####fc4####
-        self.fc4 = nn.Linear(opt.feature_size_ds, 1)
+        self.fc4 = nn.Linear(feature_size_ds, 1)
         for p in self.fc4.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
 
 
     def forward(self, x,frames_sequence):
-        batch_load = int(self.batch_size/self.split_input)
+
         x_list=[]
         input2attention = []
-        x_list = torch.split(x,1,0)
+        x_list = torch.split(x,self.batch_load,0)
         for i in range(self.split_input):
             if not self.no_cuda:
                 item = x_list[i].to('cuda')
+            else:
+                item = x_list[i]
             if self.cnn_arch == '3D':
-                item = item.view(batch_load, 3, self.frames_sequence, self.frame_size, self.frame_size)
+                item = item.view(self.batch_load, 3, self.frames_sequence, self.frame_size, self.frame_size)
             elif self.cnn_arch == '2D':
-                item = item.view(batch_load * self.frames_sequence, 3, self.frame_size, self.frame_size)
+                item = item.view(self.batch_load * self.frames_sequence, 3, self.frame_size, self.frame_size)
             elif self.cnn_arch == 'mfnet':
-                item = item.view(batch_load, 3, self.frames_sequence, self.frame_size, self.frame_size)
+                item = item.view(self.batch_load, 3, self.frames_sequence, self.frame_size, self.frame_size)
             with torch.no_grad():
                 input2attention.append(self.feature_extrator(item))
-        z=torch.cat(input2attention,dim=0)
-        z=self.dim_ds(z)
+        z = torch.cat(input2attention,dim=0)
+        if self.cnn_arch != 'mfnet':
+            z = self.dim_ds(z)
+        else:
+            z = z.view(self.attention_batch,self.frames4attention,z.shape[1])
         z = self.attention(z)
         z = z.transpose(1,2)
         z = self.fc3(z)
