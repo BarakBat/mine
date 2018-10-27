@@ -14,6 +14,11 @@ def parse_opts():
         type=str,
         help='2D|3D|mfnet')
     parser.add_argument(
+        '--split_input',
+        default='2',
+        type=int,
+        help='2,4,6')
+    parser.add_argument(
         '--feature_size',
         default='1000',
         type=int,

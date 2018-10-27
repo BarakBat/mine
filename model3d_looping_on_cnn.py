@@ -42,8 +42,12 @@ class BNet(nn.Module):
         self.frame_size = opt.frame_size
         self.batch_size = int(opt.batch_size/opt.number_gpu)
         self.frames_sequence = opt.frames_sequence
+        self.split_input = opt.split_input
+        self.no_cuda = opt.no_cuda
         ###feature extractor###
-        if self.cnn_arch == '3D':
+        if self.cnn_arch == '2D':
+            self.feature_extrator = resnet.resnet50(feature_size=opt.feature_size)
+        elif self.cnn_arch == '3D':
             self.feature_extrator = resnet3d.resnet34(feature_size=opt.feature_size, frame_size=opt.frame_size,frames_sequence=opt.frames_sequence)
         elif self.cnn_arch == 'mfnet':
             self.feature_extrator =MFNET_3D(opt.feature_size)
@@ -77,21 +81,31 @@ class BNet(nn.Module):
 
 
     def forward(self, x,frames_sequence):
-        if self.cnn_arch == '3D':
-            x = x.view(self.batch_size, 3, self.frames_sequence, self.frame_size, self.frame_size)
-        elif self.cnn_arch == 'mfnet':
-            x = x.view(self.batch_size, 3, self.frames_sequence, self.frame_size, self.frame_size)
-        with torch.no_grad():
-            x = self.feature_extrator(x)
-        x=self.dim_ds(x)
-        x = self.attention(x)
-        x = x.transpose(1,2)
-        x = self.fc3(x)
-        x = x.transpose(1,2)
-        x = self.fc4(x)
+        batch_load = int(self.batch_size/self.split_input)
+        x_list=[]
+        input2attention = []
+        x_list = torch.split(x,1,0)
+        for i in range(self.split_input):
+            if not self.no_cuda:
+                x_list[i] = x_list[i].to('cuda')
+            if self.cnn_arch == '3D':
+                item = x_list[i].view(batch_load, 3, self.frames_sequence, self.frame_size, self.frame_size)
+            elif self.cnn_arch == '2D':
+                item = x_list[i].view(batch_load * self.frames_sequence, 3, self.frame_size, self.frame_size)
+            elif self.cnn_arch == 'mfnet':
+                item = x_list[i].view(batch_load, 3, self.frames_sequence, self.frame_size, self.frame_size)
+            with torch.no_grad():
+                input2attention.append(self.feature_extrator(item))
+        z=torch.cat(input2attention,dim=0)
+        z=self.dim_ds(z)
+        z = self.attention(z)
+        z = z.transpose(1,2)
+        z = self.fc3(z)
+        z = z.transpose(1,2)
+        z = self.fc4(z)
 
 
-        return x
+        return z
 
 def model(opt):
     model = BNet(opt)

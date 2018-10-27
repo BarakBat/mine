@@ -7,7 +7,8 @@ from torch import nn
 from torch import optim
 from torch.optim import lr_scheduler
 
-from model1 import model
+#from model1 import model
+from model3d_looping_on_cnn import model
 from mean import get_mean, get_std
 from spatial_transforms import (
     Compose, Normalize, Scale, CenterCrop, CornerCrop, MultiScaleCornerCrop,

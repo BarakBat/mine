@@ -80,6 +80,7 @@ class BNet(nn.Module):
 
 
     def forward(self, x,frames_sequence):
+
         if self.cnn_arch == '3D':
             x = x.view(self.batch_size, 3, self.frames_sequence, self.frame_size, self.frame_size)
         elif self.cnn_arch == '2D':
