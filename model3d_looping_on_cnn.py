@@ -87,13 +87,13 @@ class BNet(nn.Module):
         x_list = torch.split(x,1,0)
         for i in range(self.split_input):
             if not self.no_cuda:
-                x_list[i] = x_list[i].to('cuda')
+                item = x_list[i].to('cuda')
             if self.cnn_arch == '3D':
-                item = x_list[i].view(batch_load, 3, self.frames_sequence, self.frame_size, self.frame_size)
+                item = item.view(batch_load, 3, self.frames_sequence, self.frame_size, self.frame_size)
             elif self.cnn_arch == '2D':
-                item = x_list[i].view(batch_load * self.frames_sequence, 3, self.frame_size, self.frame_size)
+                item = item.view(batch_load * self.frames_sequence, 3, self.frame_size, self.frame_size)
             elif self.cnn_arch == 'mfnet':
-                item = x_list[i].view(batch_load, 3, self.frames_sequence, self.frame_size, self.frame_size)
+                item = item.view(batch_load, 3, self.frames_sequence, self.frame_size, self.frame_size)
             with torch.no_grad():
                 input2attention.append(self.feature_extrator(item))
         z=torch.cat(input2attention,dim=0)
