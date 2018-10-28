@@ -50,11 +50,11 @@ class BNet(nn.Module):
         self.frames2cnn    =  opt.frames2cnn
         ###feature extractor###
         if self.cnn_arch == '2D':
-            self.feature_extrator = resnet.resnet50(feature_size=opt.feature_size)
+            self.feature_extractor = resnet.resnet50(feature_size=opt.feature_size)
         elif self.cnn_arch == '3D':
-            self.feature_extrator = resnet3d.resnet34(feature_size=opt.feature_size, frame_size=opt.frame_size,frames_sequence=opt.frames_sequence)
+            self.feature_extractor = resnet3d.resnet34(feature_size=opt.feature_size, frame_size=opt.frame_size,frames_sequence=opt.frames_sequence)
         elif self.cnn_arch == 'mfnet':
-            self.feature_extrator =MFNET_3D(opt.feature_size)
+            self.feature_extractor =MFNET_3D(opt.feature_size)
         ###change dimansion###
         if opt.cnn_arch == 'mfnet':
             self.dim_ds           = nn.Linear(768, opt.feature_size_ds)
@@ -105,7 +105,7 @@ class BNet(nn.Module):
             elif self.cnn_arch == 'mfnet':
                 item = item.view(self.batch_load*int(self.frames_sequence/self.frames2cnn), 3, self.frames2cnn, self.frame_size, self.frame_size)
             with torch.no_grad():
-                input2attention.append(self.feature_extrator(item))
+                input2attention.append(self.feature_extractor(item))
         z = torch.cat(input2attention,dim=0)
         if self.cnn_arch != 'mfnet':
             z = self.dim_ds(z)

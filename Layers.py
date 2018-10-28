@@ -108,7 +108,7 @@ class MultiHeadAttention(nn.Module):
 
 
 class PositionalEncoder(nn.Module):
-    def __init__(self, feature_size,cnn_arch, max_seq_len=80):
+    def __init__(self, feature_size,cnn_arch, max_seq_len):
         super().__init__()
         self.feature_size = feature_size
         self.cnn_arch =cnn_arch

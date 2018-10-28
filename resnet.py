@@ -153,7 +153,7 @@ class ResNet(nn.Module):
         return x
 
 
-def resnet18(pretrained=False, feature_size=1000):
+def resnet18(pretrained=True, feature_size=1000):
     """Constructs a ResNet-18 model.
     Args:
         pretrained (bool): If True, returns a model pre-trained on ImageNet

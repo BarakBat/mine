@@ -38,7 +38,7 @@ class BNet(nn.Module):
         #Defines
         self.number_gpu=opt.number_gpu
         self.cnn_arch = opt.cnn_arch
-        self.feature_size = opt.feature_size
+        self.feature_size = 1000
         self.frame_size = opt.frame_size
         self.batch_size = int(opt.batch_size/opt.number_gpu)
         self.frames_sequence = opt.frames_sequence
@@ -46,15 +46,8 @@ class BNet(nn.Module):
         ###feature extractor###
         if self.cnn_arch == '2D':
             self.feature_extrator = resnet.resnet50(feature_size=opt.feature_size)
-        elif self.cnn_arch == '3D':
-            self.feature_extrator = resnet3d.resnet34(feature_size=opt.feature_size, frame_size=opt.frame_size,frames_sequence=opt.frames_sequence)
-        elif self.cnn_arch == 'mfnet':
-            self.feature_extrator =MFNET_3D(opt.feature_size)
-        ###change dimansion###
-        if opt.cnn_arch == 'mfnet':
-            self.dim_ds           = nn.Linear(768, opt.feature_size_ds)
-        else:
-            self.dim_ds           = nn.Linear(opt.feature_size, opt.feature_size_ds)
+
+        self.dim_ds           = nn.Linear(opt.feature_size, opt.feature_size_ds)
         for p in self.dim_ds.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
@@ -81,16 +74,12 @@ class BNet(nn.Module):
 
     def forward(self, x,frames_sequence):
 
-        if self.cnn_arch == '3D':
-            x = x.view(self.batch_size, 3, self.frames_sequence, self.frame_size, self.frame_size)
-        elif self.cnn_arch == '2D':
+        if self.cnn_arch == '2D':
             x = x.view(self.batch_size * self.frames_sequence, 3, self.frame_size, self.frame_size)
-        elif self.cnn_arch == 'mfnet':
-            x = x.view(self.batch_size, 3, self.frames_sequence, self.frame_size, self.frame_size)
+
         with torch.no_grad():
             x = self.feature_extrator(x)
-        if self.cnn_arch != 'mfnet':
-            x = self.dim_ds(x)
+        x = self.dim_ds(x)
         x = self.attention(x)
         x = x.transpose(1,2)
         x = self.fc3(x)

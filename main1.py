@@ -7,7 +7,7 @@ from torch import nn
 from torch import optim
 from torch.optim import lr_scheduler
 
-#from model1 import model
+from model2d import model as model2d
 from model3d_looping_on_cnn import model
 from mean import get_mean, get_std
 from spatial_transforms import (
@@ -46,8 +46,10 @@ if __name__ == '__main__':
         json.dump(vars(opt), opt_file)
 
     torch.manual_seed(opt.manual_seed)
-
-    model, parameters = model(opt)
+    if opt.cnn_arch == "mfnet":
+        model, parameters = model(opt)
+    else:
+        model, parameters = model2d(opt)
     print(model)
 
     criterion = nn.CrossEntropyLoss()

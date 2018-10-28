@@ -10,7 +10,7 @@ def parse_opts():
         help='Root directory path of data')
     parser.add_argument(
         '--cnn_arch',
-        default='mfnet',
+        default='2D',
         type=str,
         help='2D|3D|mfnet')
     parser.add_argument(
