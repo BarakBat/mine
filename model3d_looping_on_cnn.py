@@ -47,7 +47,7 @@ class BNet(nn.Module):
         self.frames4attention = opt.frames4attention
         self.batch_load = int(self.batch_size / self.split_input) # batch in each iteration
         self.attention_batch = int(self.batch_size / self.frames4attention)
-
+        self.frames2cnn    =  opt.frames2cnn
         ###feature extractor###
         if self.cnn_arch == '2D':
             self.feature_extrator = resnet.resnet50(feature_size=opt.feature_size)
@@ -68,7 +68,7 @@ class BNet(nn.Module):
             feature_size_ds = 400
         else:
             feature_size_ds = opt.feature_size_ds
-        self.attention = PayAttention(feature_size_ds, opt.frame_size, self.attention_batch, opt.frames4attention,opt.attention_arch,opt.cnn_arch)
+        self.attention = PayAttention(feature_size_ds, opt.frame_size, self.batch_size, opt.frames4attention,opt.attention_arch,opt.cnn_arch)
         for p in self.attention.parameters():
             if p.dim() > 1:
                 nn.init.xavier_uniform_(p)
@@ -103,14 +103,14 @@ class BNet(nn.Module):
             elif self.cnn_arch == '2D':
                 item = item.view(self.batch_load * self.frames_sequence, 3, self.frame_size, self.frame_size)
             elif self.cnn_arch == 'mfnet':
-                item = item.view(self.batch_load, 3, self.frames_sequence, self.frame_size, self.frame_size)
+                item = item.view(self.batch_load*int(self.frames_sequence/self.frames2cnn), 3, self.frames2cnn, self.frame_size, self.frame_size)
             with torch.no_grad():
                 input2attention.append(self.feature_extrator(item))
         z = torch.cat(input2attention,dim=0)
         if self.cnn_arch != 'mfnet':
             z = self.dim_ds(z)
         else:
-            z = z.view(self.attention_batch,self.frames4attention,z.shape[1])
+            z = z.view(self.batch_size,self.frames4attention,z.shape[1])
         z = self.attention(z)
         z = z.transpose(1,2)
         z = self.fc3(z)

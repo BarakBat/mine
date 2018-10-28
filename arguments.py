@@ -81,10 +81,14 @@ def parse_opts():
         default=8,
         type=int,
         help='Temporal duration of inputs')
-
+    parser.add_argument(
+        '--frames2cnn',
+        default = 4,
+        type=int,
+            help='How many frames to cnn')
     parser.add_argument(
         '--frames_sequence',
-        default = 4,
+        default = 32,
         type=int,
         help='Temporal duration of inputs')
     parser.add_argument(
@@ -151,7 +155,7 @@ def parse_opts():
         help='Patience of LR scheduler. See documentation of ReduceLROnPlateau.'
     )
     parser.add_argument(
-        '--batch_size', default=16, type=int, help='Batch Size')
+        '--batch_size', default=2, type=int, help='Batch Size')
     parser.add_argument('--n_epochs',
         default=200,
         type=int,
